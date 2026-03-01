@@ -104,7 +104,7 @@
                         <TextBlock Text="{Binding SaveStatusText}" VerticalAlignment="Center"
                                    Margin="8,0,0,0" Foreground="LightGreen" FontWeight="SemiBold" />
                     </StackPanel>
-                    <DataGrid ItemsSource="{Binding ConfiguredServices}"
+                    <DataGrid Name="ConfiguredGrid" ItemsSource="{Binding ConfiguredServices}"
                               IsReadOnly="True"
                               CanUserResizeColumns="True"
                               GridLinesVisibility="Horizontal"

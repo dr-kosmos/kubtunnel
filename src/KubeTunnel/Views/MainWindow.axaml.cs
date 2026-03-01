@@ -225,6 +225,13 @@ public partial class MainWindow : Window
             _ = CreateProfile();
             e.Handled = true;
         }
+        else if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None)
+        {
+            ServicesGrid.SelectedItem = null;
+            ConfiguredGrid.SelectedItem = null;
+            FocusSearch();
+            e.Handled = true;
+        }
         else if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.None)
         {
             FocusSearch();
