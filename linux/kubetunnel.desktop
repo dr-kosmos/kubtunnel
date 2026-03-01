@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=KubeTunnel
+Comment=Kubernetes port-forward tunnel manager
+Exec=/opt/kubetunnel/KubeTunnel
+Icon=kubetunnel
+Terminal=false
+Type=Application
+Categories=Development;Utility;
+Keywords=kubernetes;kubectl;port-forward;tunnel;
+StartupWMClass=KubeTunnel

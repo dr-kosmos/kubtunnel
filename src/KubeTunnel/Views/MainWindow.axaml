@@ -1,0 +1,157 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="KubeTunnel.Views.MainWindow"
+        Title="KubeTunnel" Width="750" SizeToContent="Height" CanResize="False">
+
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
+        <KeyBinding Gesture="Ctrl+R" Command="{Binding RunCommand}" />
+        <KeyBinding Gesture="Ctrl+A" Command="{Binding StopCommand}" />
+    </Window.KeyBindings>
+
+    <DockPanel>
+        <!-- Menu Bar -->
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="Profiles">
+                <MenuItem Header="Create profile" Click="CreateProfile_OnClick" />
+                <MenuItem Header="Delete current profile" Name="DeleteProfileMenuItem"
+                          Click="DeleteProfile_OnClick"
+                          IsEnabled="{Binding IsNotDefaultProfile}" />
+                <Separator />
+                <MenuItem Header="Select" Name="ProfileMenuItem" />
+            </MenuItem>
+            <MenuItem Header="Themes" Name="ThemeMenuItem" />
+            <MenuItem Header="System">
+                <MenuItem Header="Close all kubectl instances" Command="{Binding KillKubectlCommand}" />
+            </MenuItem>
+        </Menu>
+
+        <!-- Main Content -->
+        <Grid Margin="4">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="250" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="250" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Available Services -->
+            <HeaderedContentControl Grid.Row="0" Header="Available Services">
+                <DockPanel>
+                    <TextBox DockPanel.Dock="Top" Name="TxtSearch"
+                             Watermark="Search services..."
+                             Text="{Binding SearchText}"
+                             Margin="0,0,0,4"
+                             KeyDown="TxtSearch_OnKeyDown" />
+                    <DataGrid Name="ServicesGrid"
+                              ItemsSource="{Binding FilteredServices}"
+                              SelectedItem="{Binding SelectedService}"
+                              IsReadOnly="True"
+                              CanUserResizeColumns="True"
+                              GridLinesVisibility="Horizontal"
+                              SelectionMode="Single">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Service" Binding="{Binding Service}" Width="2*" />
+                            <DataGridTextColumn Header="Namespace" Binding="{Binding Namespace}" Width="1.5*" />
+                            <DataGridTextColumn Header="Ports" Binding="{Binding PortsDisplay}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </HeaderedContentControl>
+
+            <!-- Add Service Section -->
+            <HeaderedContentControl Grid.Row="1" Header="{Binding AddSectionHeader}">
+                <WrapPanel>
+                    <TextBlock Text="{Binding SelectedService.Service}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" Width="150" Margin="0,2,5,2" />
+                    <TextBlock Text="Port:" VerticalAlignment="Center" Margin="0,2,5,2" />
+                    <ComboBox Name="CmbPort" MinWidth="80" Margin="0,2,5,2"
+                              ItemsSource="{Binding AvailablePorts}"
+                              SelectedItem="{Binding SelectedPort}"
+                              IsEnabled="{Binding HasMultiplePorts}" />
+                    <TextBlock Text="Remote:" VerticalAlignment="Center" Margin="0,2,5,2" />
+                    <TextBox IsReadOnly="True" Width="65" Margin="0,2,5,2"
+                             Text="{Binding SelectedPort.Port}" />
+                    <TextBlock Text="Local:" VerticalAlignment="Center" Margin="0,2,5,2" />
+                    <TextBox Width="65" Margin="0,2,5,2" Name="TxtLocalPort"
+                             Text="{Binding LocalPortText}"
+                             KeyDown="TxtLocalPort_OnKeyDown" />
+                    <Button Content="Add" Margin="0,2,0,2"
+                            Command="{Binding AddToConfigCommand}" />
+                </WrapPanel>
+            </HeaderedContentControl>
+
+            <!-- Configured Services -->
+            <HeaderedContentControl Grid.Row="2">
+                <HeaderedContentControl.Header>
+                    <DockPanel LastChildFill="True">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Content="▶ Run" Margin="5,0"
+                                    Command="{Binding RunCommand}"
+                                    IsVisible="{Binding IsNotRunning}" />
+                            <Button Content="■ Stop" Margin="5,0"
+                                    Command="{Binding StopCommand}"
+                                    IsVisible="{Binding IsRunning}" />
+                        </StackPanel>
+                        <TextBlock Text="Configured Services" VerticalAlignment="Center" />
+                    </DockPanel>
+                </HeaderedContentControl.Header>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,4,0,0">
+                        <Button Content="Save" Width="150"
+                                Command="{Binding SaveCommand}" />
+                        <TextBlock Text="{Binding SaveStatusText}" VerticalAlignment="Center"
+                                   Margin="8,0,0,0" Foreground="LightGreen" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <DataGrid ItemsSource="{Binding ConfiguredServices}"
+                              IsReadOnly="True"
+                              CanUserResizeColumns="True"
+                              GridLinesVisibility="Horizontal"
+                              SelectionMode="Single">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Service" Binding="{Binding Service}" Width="2*" />
+                            <DataGridTextColumn Header="Namespace" Binding="{Binding Namespace}" Width="1.5*" />
+                            <DataGridTextColumn Header="Protocol" Binding="{Binding Protocol}" Width="*" />
+                            <DataGridTextColumn Header="Remote" Binding="{Binding RemotePort}" Width="*" />
+                            <DataGridTextColumn Header="Local" Binding="{Binding LocalPort}" Width="*" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="*" />
+                            <DataGridTemplateColumn Header="" Width="110">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
+                                            <Button Content="Copy"
+                                                    Command="{Binding $parent[Window].DataContext.CopyRouteCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    Padding="4,2" />
+                                            <Button Content="Del"
+                                                    Command="{Binding $parent[Window].DataContext.DeleteServiceCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    Padding="4,2" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </HeaderedContentControl>
+
+            <!-- Log Output -->
+            <HeaderedContentControl Grid.Row="3" Header="Log Output">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,4,0,0" Spacing="8">
+                        <Button Content="Clear Log" Command="{Binding ClearLogCommand}" />
+                        <Button Content="Copy Log" Command="{Binding CopyLogCommand}" />
+                    </StackPanel>
+                    <ScrollViewer Name="LogScroller" Height="250"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <TextBlock Text="{Binding LogText}" TextWrapping="Wrap"
+                                   Margin="4" />
+                    </ScrollViewer>
+                </DockPanel>
+            </HeaderedContentControl>
+        </Grid>
+    </DockPanel>
+</Window>

@@ -1,0 +1,38 @@
+# Build outputs
+bin/
+obj/
+publish/
+
+# IDE / Editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln.docstates
+
+# Rider
+*.sln.iml
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+._*
+
+# .NET
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+
+# User secrets
+secrets.json
+
+# Crash dumps
+*.dmp
+
+# Linux packaging artifacts
+/linux/*.AppImage
+/linux/*.deb
+/linux/*.rpm
