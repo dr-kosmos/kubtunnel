@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="KubeTunnel.Views.MainWindow"
-        Title="KubeTunnel" Width="750" SizeToContent="Height" CanResize="False">
+        Title="KubeTunnel" Width="750" SizeToContent="Height" CanResize="True">
 
     <Window.KeyBindings>
         <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
