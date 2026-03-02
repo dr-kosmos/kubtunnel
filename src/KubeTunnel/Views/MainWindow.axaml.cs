@@ -19,6 +19,7 @@ public partial class MainWindow : Window
 
         vm.ShowMessageAction = ShowMessage;
         vm.CreateProfileAction = CreateProfile;
+        vm.CopyToClipboardAction = CopyToClipboard;
 
         InitializeComponent();
         BuildProfileMenu();
@@ -178,8 +179,10 @@ public partial class MainWindow : Window
             ? ViewModel.ConfiguredServices.Max(c => c.LocalPort)
             : 0;
 
-        if (maxPort > 0)
-            ViewModel.LocalPortText = (maxPort + 1).ToString();
+        var suggested = maxPort > 0 ? maxPort + 1 : ViewModel.SelectedPort?.Port ?? 0;
+
+        if (suggested > 0)
+            ViewModel.LocalPortText = Math.Max(suggested, 1024).ToString();
 
         TxtLocalPort.Focus();
         TxtLocalPort.SelectAll();
@@ -206,6 +209,13 @@ public partial class MainWindow : Window
     {
         TxtSearch.Focus();
         TxtSearch.SelectAll();
+    }
+
+    private async Task CopyToClipboard(string text)
+    {
+        var clipboard = Clipboard;
+        if (clipboard != null)
+            await clipboard.SetTextAsync(text);
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)

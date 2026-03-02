@@ -104,12 +104,25 @@ public class TunnelService
 
                     if (process != null)
                     {
-                        await WaitForExitOrCancellation(process, ct);
+                        var startTime = DateTime.UtcNow;
+                        var stderr = await WaitForExitOrCancellation(process, ct);
 
                         if (!ct.IsCancellationRequested)
                         {
                             SetStatus(key, TunnelStatus.Reconnecting);
+
+                            if (!string.IsNullOrWhiteSpace(stderr))
+                                Log($"Error from {config.Service}: {stderr.Trim()}");
+
                             Log($"Connection lost: {config.Service}. Reconnecting...");
+
+                            // If the process exited quickly, wait before retrying to avoid a tight loop
+                            var elapsed = DateTime.UtcNow - startTime;
+                            if (elapsed.TotalSeconds < 5)
+                            {
+                                try { await Task.Delay(5000, ct); }
+                                catch (OperationCanceledException) { return; }
+                            }
                         }
                     }
 
@@ -170,22 +183,29 @@ public class TunnelService
         }
     }
 
-    private static async Task WaitForExitOrCancellation(Process process, CancellationToken ct)
+    private static async Task<string> WaitForExitOrCancellation(Process process, CancellationToken ct)
     {
-        var tcs = new TaskCompletionSource<bool>();
+        // Drain stdout and capture stderr to prevent buffer deadlock and capture diagnostics
+        var stderrTask = process.StandardError.ReadToEndAsync();
+        _ = process.StandardOutput.ReadToEndAsync();
 
-        process.Exited += (_, _) => tcs.TrySetResult(true);
-
-        var cancellationTask = Task.Delay(-1, ct);
-
-        if (await Task.WhenAny(tcs.Task, cancellationTask) == cancellationTask)
+        try
+        {
+            await process.WaitForExitAsync(ct);
+        }
+        catch (OperationCanceledException)
         {
             if (!process.HasExited)
             {
                 try { process.Kill(); }
                 catch { /* ignored */ }
             }
+
+            return string.Empty;
         }
+
+        try { return await stderrTask; }
+        catch { return string.Empty; }
     }
 
     private enum PortForwardResult

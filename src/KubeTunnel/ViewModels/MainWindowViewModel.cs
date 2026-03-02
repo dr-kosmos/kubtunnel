@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
-using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using KubeTunnel.Services;
 using KubeTunnel.Models;
@@ -172,6 +171,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
     // These are invoked from code-behind (async dialogs need Window reference)
     public Func<Task>? CreateProfileAction { get; set; }
     public Func<string, Task>? ShowMessageAction { get; set; }
+    public Func<string, Task>? CopyToClipboardAction { get; set; }
 
     public MainWindowViewModel()
     {
@@ -426,21 +426,15 @@ public class MainWindowViewModel : INotifyPropertyChanged
     private async void CopyLog()
     {
         if (string.IsNullOrEmpty(LogText)) return;
-        await CopyToClipboard(LogText);
+        if (CopyToClipboardAction != null)
+            await CopyToClipboardAction(LogText);
     }
 
     private async void CopyRoute(ConfiguredServiceRow? row)
     {
         if (row == null) return;
-        await CopyToClipboard($"localhost:{row.LocalPort}");
-    }
-
-    private static async Task CopyToClipboard(string text)
-    {
-        var clipboard = ((Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime?)
-            Avalonia.Application.Current?.ApplicationLifetime)?.MainWindow?.Clipboard;
-        if (clipboard != null)
-            await clipboard.SetTextAsync(text);
+        if (CopyToClipboardAction != null)
+            await CopyToClipboardAction($"localhost:{row.LocalPort}");
     }
 
     public void Cleanup()
