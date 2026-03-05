@@ -77,12 +77,10 @@
                     <TextBlock Text="Remote:" VerticalAlignment="Center" Margin="0,2,5,2" />
                     <TextBox IsReadOnly="True" Width="65" Margin="0,2,5,2"
                              Text="{Binding SelectedPort.Port}" />
-                    <TextBlock Text="Local:" VerticalAlignment="Center" Margin="0,2,5,2"
-                               IsVisible="{Binding IsNotDnsMode}" />
+                    <TextBlock Text="Local:" VerticalAlignment="Center" Margin="0,2,5,2" />
                     <TextBox Width="65" Margin="0,2,5,2" Name="TxtLocalPort"
                              Text="{Binding LocalPortText}"
-                             KeyDown="TxtLocalPort_OnKeyDown"
-                             IsVisible="{Binding IsNotDnsMode}" />
+                             KeyDown="TxtLocalPort_OnKeyDown" />
                     <Button Content="Add" Margin="0,2,0,2"
                             Command="{Binding AddToConfigCommand}" />
                 </WrapPanel>
