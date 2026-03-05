@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Manages /etc/hosts entries for KubeTunnel.
+# Only allows 127.0.0.1 entries with .svc.cluster.local suffix.
+# Intended to be called via sudo with NOPASSWD for the kubtunnel group.
+set -euo pipefail
+
+MARKER_BEGIN="# BEGIN KUBTUNNEL"
+MARKER_END="# END KUBTUNNEL"
+HOSTS="/etc/hosts"
+
+usage() {
+    echo "Usage: $0 add <domain> [<domain>...]" >&2
+    echo "       $0 remove" >&2
+    exit 1
+}
+
+validate_domain() {
+    local domain="$1"
+    # Must end with .svc.cluster.local and contain only valid hostname chars
+    if [[ ! "$domain" =~ ^[a-zA-Z0-9._-]+\.svc\.cluster\.local$ ]]; then
+        echo "Rejected: $domain (must match *.svc.cluster.local)" >&2
+        exit 1
+    fi
+}
+
+remove_block() {
+    if grep -q "$MARKER_BEGIN" "$HOSTS"; then
+        sed -i "/$MARKER_BEGIN/,/$MARKER_END/d" "$HOSTS"
+    fi
+}
+
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+    add)
+        [ $# -eq 0 ] && usage
+        for domain in "$@"; do
+            validate_domain "$domain"
+        done
+        remove_block
+        {
+            echo "$MARKER_BEGIN"
+            for domain in "$@"; do
+                echo "127.0.0.1 $domain"
+            done
+            echo "$MARKER_END"
+        } >> "$HOSTS"
+        ;;
+    remove)
+        remove_block
+        ;;
+    *)
+        usage
+        ;;
+esac

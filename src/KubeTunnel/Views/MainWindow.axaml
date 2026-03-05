@@ -24,6 +24,10 @@
             <MenuItem Header="System">
                 <MenuItem Header="Close all kubectl instances" Command="{Binding KillKubectlCommand}" />
             </MenuItem>
+            <Separator Width="20" />
+            <CheckBox Content="DNS Mode" IsChecked="{Binding DnsMode, Mode=OneWay}"
+                      Command="{Binding ToggleDnsModeCommand}"
+                      VerticalAlignment="Center" Margin="4,0" />
         </Menu>
 
         <!-- Main Content -->
@@ -73,10 +77,12 @@
                     <TextBlock Text="Remote:" VerticalAlignment="Center" Margin="0,2,5,2" />
                     <TextBox IsReadOnly="True" Width="65" Margin="0,2,5,2"
                              Text="{Binding SelectedPort.Port}" />
-                    <TextBlock Text="Local:" VerticalAlignment="Center" Margin="0,2,5,2" />
+                    <TextBlock Text="Local:" VerticalAlignment="Center" Margin="0,2,5,2"
+                               IsVisible="{Binding IsNotDnsMode}" />
                     <TextBox Width="65" Margin="0,2,5,2" Name="TxtLocalPort"
                              Text="{Binding LocalPortText}"
-                             KeyDown="TxtLocalPort_OnKeyDown" />
+                             KeyDown="TxtLocalPort_OnKeyDown"
+                             IsVisible="{Binding IsNotDnsMode}" />
                     <Button Content="Add" Margin="0,2,0,2"
                             Command="{Binding AddToConfigCommand}" />
                 </WrapPanel>

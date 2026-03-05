@@ -2,9 +2,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REAL_USER="${SUDO_USER:-$USER}"
+REAL_HOME=$(eval echo "~$REAL_USER")
 INSTALL_DIR="/opt/kubetunnel"
-DESKTOP_FILE="$HOME/.local/share/applications/kubetunnel.desktop"
-ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
+DESKTOP_FILE="$REAL_HOME/.local/share/applications/kubetunnel.desktop"
+ICON_DIR="$REAL_HOME/.local/share/icons/hicolor/256x256/apps"
 
 # Check if publish output exists
 PUBLISH_DIR="$SCRIPT_DIR/../src/KubeTunnel/bin/Release/net10.0/linux-x64/publish"
@@ -41,8 +43,37 @@ else
     cp "$ICO_PATH" "$ICON_DIR/kubetunnel.ico"
 fi
 
+# Create kubtunnel group and add current user
+if ! getent group kubtunnel > /dev/null 2>&1; then
+    echo "Creating 'kubtunnel' group..."
+    sudo groupadd kubtunnel
+fi
+if ! id -nG "$REAL_USER" | grep -qw kubtunnel; then
+    echo "Adding $REAL_USER to 'kubtunnel' group..."
+    sudo usermod -aG kubtunnel "$REAL_USER"
+    echo "Note: You may need to log out and back in for the group to take effect."
+fi
+
+# Install hosts helper (manages /etc/hosts entries for DNS mode)
+HOSTS_HELPER="$INSTALL_DIR/kubtunnel-hosts"
+echo "Installing hosts helper for DNS mode..."
+sudo cp "$SCRIPT_DIR/kubtunnel-hosts" "$HOSTS_HELPER"
+sudo chown root:root "$HOSTS_HELPER"
+sudo chmod 755 "$HOSTS_HELPER"
+
+# Allow kubtunnel group to run the hosts helper without a password
+SUDOERS_FILE="/etc/sudoers.d/kubtunnel"
+echo "Installing sudoers rule..."
+sudo tee "$SUDOERS_FILE" > /dev/null << SUDOERS_EOF
+%kubtunnel ALL=(root) NOPASSWD: $HOSTS_HELPER
+SUDOERS_EOF
+sudo chmod 440 "$SUDOERS_FILE"
+
+# Remove old polkit rule if present (no longer needed)
+sudo rm -f /etc/polkit-1/rules.d/50-kubtunnel-resolved.rules
+
 # Update desktop database
-update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
-gtk-update-icon-cache "$HOME/.local/share/icons/hicolor/" 2>/dev/null || true
+update-desktop-database "$REAL_HOME/.local/share/applications/" 2>/dev/null || true
+gtk-update-icon-cache "$REAL_HOME/.local/share/icons/hicolor/" 2>/dev/null || true
 
 echo "Done! KubeTunnel should now appear in your GNOME application search."

@@ -9,6 +9,7 @@ A cross-platform desktop app for managing multiple `kubectl port-forward` tunnel
 - **Multi-service tunneling** — Forward multiple services across namespaces simultaneously
 - **Profiles** — Save and switch between tunnel configurations for different environments
 - **Auto-reconnect** — Automatically re-establishes tunnels when connections drop
+- **DNS mode (Linux)** — Access services using their cluster domain names (e.g. `myservice.namespace.svc.cluster.local`)
 - **Keyboard-driven workflow** — Search, select, configure, and add services without touching the mouse
 - **Themes** — Built-in presets (Default Light/Dark, Nord, Dracula, Solarized Dark)
 - **Cross-platform** — Runs on Windows, Linux, and macOS
@@ -44,7 +45,12 @@ chmod +x linux/install.sh
 ./linux/install.sh
 ```
 
-KubeTunnel will appear in the GNOME application search. To remove:
+The install script:
+- Installs the binary to `/opt/kubetunnel`
+- Creates a `.desktop` entry for GNOME application search
+- Sets up the `kubtunnel` group and a scoped sudoers rule for DNS mode (see below)
+
+To remove:
 
 ```bash
 chmod +x linux/uninstall.sh
@@ -58,6 +64,25 @@ chmod +x linux/uninstall.sh
 3. Set a local port and press **Add** (or Enter)
 4. Click **Run** (or Ctrl+R) to start all tunnels
 5. **Save** (Ctrl+S) persists the current profile
+
+> **Note:** Only TCP services are shown. `kubectl port-forward` does not support UDP.
+
+### DNS Mode (Linux)
+
+When DNS mode is enabled, services can be accessed using their full cluster domain names instead of `localhost:<port>`. For example:
+
+```
+curl http://myservice.mynamespace.svc.cluster.local:8080/health
+```
+
+This works by:
+1. Adding `/etc/hosts` entries that resolve service FQDNs to `127.0.0.1`
+2. Starting TCP relays when the local port differs from the remote port
+3. Cleaning up hosts entries automatically on exit
+
+DNS mode requires the `kubtunnel` group and sudoers rule installed by `linux/install.sh`. No password prompts are needed during normal use.
+
+> DNS mode is currently Linux-only. Windows and macOS support may be added in the future.
 
 ### Keyboard Shortcuts
 
@@ -74,14 +99,19 @@ chmod +x linux/uninstall.sh
 ```
 src/KubeTunnel/
   Models/          Domain models (Config, AppTheme, ServiceInfo, PortForwardConfig)
-  Services/        ConfigService (JSON persistence), TunnelService (kubectl management)
+  Services/        ConfigService (JSON persistence), TunnelService (kubectl management),
+                   DnsRelayService (hosts management + TCP relay)
   ViewModels/      MainWindowViewModel (MVVM)
   Views/           Avalonia XAML views
+linux/
+  install.sh       Linux installer (binary, desktop entry, sudoers)
+  uninstall.sh     Linux uninstaller
+  kubtunnel-hosts  Helper script for safe /etc/hosts management
 ```
 
 ## Cleanup
 
-KubeTunnel kills all spawned `kubectl` processes on exit. This is handled through three layers:
+KubeTunnel kills all spawned `kubectl` processes on exit and removes any `/etc/hosts` entries added by DNS mode. This is handled through three layers:
 
 1. Window close event
 2. Application shutdown event

@@ -58,7 +58,7 @@ public class ConfiguredServiceRow : INotifyPropertyChanged
 
 public class MainWindowViewModel : INotifyPropertyChanged
 {
-    private readonly ConfigService _configService = new();
+    private readonly doConfigService _configService = new();
     private readonly TunnelService _tunnelService = new();
 
     // --- Backing fields ---
@@ -72,6 +72,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
     private string? _saveStatusText;
     private CancellationTokenSource? _saveStatusCts;
     private string _currentThemeName = "Default Dark";
+    private bool _dnsMode;
 
     // --- Collections ---
     public ObservableCollection<ServiceInfo> AllServices { get; } = [];
@@ -148,7 +149,26 @@ public class MainWindowViewModel : INotifyPropertyChanged
         private set { _saveStatusText = value; OnPropertyChanged(); }
     }
 
+    public bool DnsMode
+    {
+        get => _dnsMode;
+        set
+        {
+            if (_dnsMode == value) return;
+            _dnsMode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsNotDnsMode));
+
+            var config = _configService.LoadConfig();
+            config.DnsMode = value;
+            _configService.SaveConfig(config);
+        }
+    }
+
+    public bool IsNotDnsMode => !DnsMode;
+
     // --- Commands ---
+    public ICommand ToggleDnsModeCommand { get; }
     public ICommand SaveCommand { get; }
     public ICommand AddToConfigCommand { get; }
     public ICommand DeleteServiceCommand { get; }
@@ -175,6 +195,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
     public MainWindowViewModel()
     {
+        ToggleDnsModeCommand = new RelayCommand(ToggleDnsMode);
         SaveCommand = new RelayCommand(Save);
         AddToConfigCommand = new RelayCommand(AddToConfig);
         DeleteServiceCommand = new RelayCommand<ConfiguredServiceRow>(DeleteService);
@@ -195,6 +216,9 @@ public class MainWindowViewModel : INotifyPropertyChanged
     {
         var config = _configService.LoadConfig();
         CurrentProfile = config.CurrentProfile;
+        _dnsMode = config.DnsMode;
+        OnPropertyChanged(nameof(DnsMode));
+        OnPropertyChanged(nameof(IsNotDnsMode));
 
         // Apply saved theme
         var savedTheme = AppTheme.Presets.FirstOrDefault(t => t.Name == config.Theme)
@@ -291,14 +315,27 @@ public class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(HasMultiplePorts));
     }
 
+    private void ToggleDnsMode()
+    {
+        DnsMode = !DnsMode;
+    }
+
     private void AddToConfig()
     {
         if (SelectedService == null || SelectedPort == null) return;
 
-        if (!int.TryParse(LocalPortText, out var port))
+        int port;
+        if (_dnsMode)
         {
-            ShowMessageAction?.Invoke("Invalid port.");
-            return;
+            port = SelectedPort.Port;
+        }
+        else
+        {
+            if (!int.TryParse(LocalPortText, out port))
+            {
+                ShowMessageAction?.Invoke("Invalid port.");
+                return;
+            }
         }
 
         if (ConfiguredServices.Any(x =>
@@ -311,7 +348,13 @@ public class MainWindowViewModel : INotifyPropertyChanged
             return;
         }
 
-        if (ConfiguredServices.Any(x => x.LocalPort == port))
+        if (_dnsMode && ConfiguredServices.Any(x => x.RemotePort == port))
+        {
+            ShowMessageAction?.Invoke("Remote port conflict: two services cannot share the same remote port in DNS mode.");
+            return;
+        }
+
+        if (!_dnsMode && ConfiguredServices.Any(x => x.LocalPort == port))
         {
             ShowMessageAction?.Invoke("Port conflict.");
             return;
@@ -412,7 +455,16 @@ public class MainWindowViewModel : INotifyPropertyChanged
         if (ConfiguredServices.Count == 0) return;
 
         var configs = ConfiguredServices.Select(c => c.ToPortForwardConfig()).ToList();
-        _tunnelService.StartAll(configs);
+        try
+        {
+            _tunnelService.StartAll(configs, _dnsMode);
+        }
+        catch (InvalidOperationException ex)
+        {
+            var ts = DateTime.Now.ToString("HH:mm:ss");
+            LogText += $"[{ts}] {ex.Message}\n";
+            return;
+        }
         IsRunning = true;
     }
 
@@ -433,8 +485,13 @@ public class MainWindowViewModel : INotifyPropertyChanged
     private async void CopyRoute(ConfiguredServiceRow? row)
     {
         if (row == null) return;
-        if (CopyToClipboardAction != null)
-            await CopyToClipboardAction($"localhost:{row.LocalPort}");
+        if (CopyToClipboardAction == null) return;
+
+        var route = _dnsMode
+            ? $"{row.Service}.{row.Namespace}.svc.cluster.local:{row.RemotePort}"
+            : $"localhost:{row.LocalPort}";
+
+        await CopyToClipboardAction(route);
     }
 
     public void Cleanup()

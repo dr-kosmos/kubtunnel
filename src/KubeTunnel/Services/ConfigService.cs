@@ -4,7 +4,7 @@ using KubeTunnel.Models;
 
 namespace KubeTunnel.Services;
 
-public class ConfigService
+public class doConfigService
 {
     public Config LoadConfig()
     {
@@ -128,13 +128,16 @@ public class ConfigService
                         var parts = entry.Split('/');
                         return new ServicePort(int.Parse(parts[0]), parts.Length > 1 ? parts[1] : "TCP");
                     })
+                    .Where(p => !p.Protocol.Equals("UDP", StringComparison.OrdinalIgnoreCase))
                     .ToList();
+
+                if (ports.Count == 0) continue;
 
                 services.Add(new ServiceInfo
                 {
                     Service = split[1],
                     Namespace = split[0],
-                    PortsDisplay = portsRaw,
+                    PortsDisplay = string.Join(",", ports),
                     Ports = ports
                 });
             }

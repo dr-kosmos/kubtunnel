@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -7,6 +8,7 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
 using KubeTunnel.Models;
+using KubeTunnel.Services;
 using KubeTunnel.Views;
 
 namespace KubeTunnel;
@@ -22,15 +24,31 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            DnsRelayService.RemoveHostsEntries();
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow();
-            desktop.ShutdownRequested += (_, _) => KillAllKubectl();
+            desktop.ShutdownRequested += (_, _) =>
+            {
+                CleanupDnsMode();
+                KillAllKubectl();
+            };
         }
 
-        AppDomain.CurrentDomain.ProcessExit += (_, _) => KillAllKubectl();
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            CleanupDnsMode();
+            KillAllKubectl();
+        };
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static void CleanupDnsMode()
+    {
+        try { DnsRelayService.RemoveHostsEntries(); } catch { /* ignored */ }
     }
 
     private static void KillAllKubectl()

@@ -19,6 +19,8 @@ public class TunnelService
     private readonly ConcurrentDictionary<string, TunnelStatus> _statuses = new();
     private readonly List<Task> _tasks = [];
     private CancellationTokenSource? _globalCts;
+    private bool _dnsMode;
+    private DnsRelayService? _dnsRelay;
 
     public bool IsRunning => _globalCts is { IsCancellationRequested: false };
 
@@ -42,14 +44,30 @@ public class TunnelService
         StatusChanged?.Invoke(key, status);
     }
 
-    public void StartAll(IEnumerable<PortForwardConfig> configs)
+    public void StartAll(IEnumerable<PortForwardConfig> configs, bool dnsMode = false)
     {
         StopAll();
 
+        _dnsMode = dnsMode;
         _globalCts = new CancellationTokenSource();
         var globalToken = _globalCts.Token;
+        var configList = configs.ToList();
 
-        foreach (var config in configs)
+        if (_dnsMode)
+        {
+            var domains = new List<string>();
+            var portMap = new Dictionary<int, int>();
+            foreach (var c in configList)
+            {
+                domains.Add($"{c.Service}.{c.Namespace}.svc.cluster.local");
+                portMap.TryAdd(c.RemotePort, c.LocalPort);
+            }
+
+            _dnsRelay = new DnsRelayService();
+            _dnsRelay.Start(domains, portMap);
+        }
+
+        foreach (var config in configList)
         {
             var key = ServiceKey(config);
             var cts = CancellationTokenSource.CreateLinkedTokenSource(globalToken);
@@ -82,6 +100,14 @@ public class TunnelService
         foreach (var key in _statuses.Keys.ToList())
         {
             SetStatus(key, TunnelStatus.Idle);
+        }
+
+        if (_dnsMode)
+        {
+            _dnsRelay?.Stop();
+            _dnsRelay?.Dispose();
+            _dnsRelay = null;
+            _dnsMode = false;
         }
 
         _cancellationTokens.Clear();
@@ -153,11 +179,12 @@ public class TunnelService
 
     private (PortForwardResult, Process?) StartKubectlPortForward(PortForwardConfig config)
     {
+        var args = $"port-forward svc/{config.Service} {config.LocalPort}:{config.RemotePort} -n {config.Namespace}";
+
         var startInfo = new ProcessStartInfo
         {
             FileName = "kubectl",
-            Arguments =
-                $"port-forward svc/{config.Service} {config.LocalPort}:{config.RemotePort} -n {config.Namespace}",
+            Arguments = args,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
