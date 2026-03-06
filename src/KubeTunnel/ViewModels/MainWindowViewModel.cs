@@ -324,20 +324,12 @@ public class MainWindowViewModel : INotifyPropertyChanged
     {
         if (SelectedService == null || SelectedPort == null) return;
 
-        int port;
-        if (_dnsMode)
+        if (!int.TryParse(LocalPortText, out var port))
         {
-            port = SelectedPort.Port;
+            ShowMessageAction?.Invoke("Invalid port.");
+            return;
         }
-        else
-        {
-            if (!int.TryParse(LocalPortText, out port))
-            {
-                ShowMessageAction?.Invoke("Invalid port.");
-                return;
-            }
-        }
-
+        
         if (ConfiguredServices.Any(x =>
                 x.Service == SelectedService.Service &&
                 x.Namespace == SelectedService.Namespace &&
@@ -348,13 +340,8 @@ public class MainWindowViewModel : INotifyPropertyChanged
             return;
         }
 
-        if (_dnsMode && ConfiguredServices.Any(x => x.RemotePort == port))
-        {
-            ShowMessageAction?.Invoke("Remote port conflict: two services cannot share the same remote port in DNS mode.");
-            return;
-        }
 
-        if (!_dnsMode && ConfiguredServices.Any(x => x.LocalPort == port))
+        if (ConfiguredServices.Any(x => x.LocalPort == port))
         {
             ShowMessageAction?.Invoke("Port conflict.");
             return;
