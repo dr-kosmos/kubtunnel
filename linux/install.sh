@@ -8,17 +8,18 @@ INSTALL_DIR="/opt/kubetunnel"
 DESKTOP_FILE="$REAL_HOME/.local/share/applications/kubetunnel.desktop"
 ICON_DIR="$REAL_HOME/.local/share/icons/hicolor/256x256/apps"
 
-# Check if publish output exists
+# Clean and rebuild
 PUBLISH_DIR="$SCRIPT_DIR/../src/KubeTunnel/bin/Release/net10.0/linux-x64/publish"
-if [ ! -d "$PUBLISH_DIR" ]; then
-    echo "Publish output not found. Building..."
-    dotnet publish "$SCRIPT_DIR/../src/KubeTunnel/KubeTunnel.csproj" \
-        -c Release \
-        -r linux-x64 \
-        --self-contained true \
-        -p:PublishSingleFile=true \
-        -p:IncludeNativeLibrariesForSelfExtract=true
-fi
+echo "Cleaning previous build..."
+dotnet clean "$SCRIPT_DIR/../src/KubeTunnel/KubeTunnel.csproj" -c Release > /dev/null 2>&1 || true
+rm -rf "$PUBLISH_DIR"
+echo "Building..."
+dotnet publish "$SCRIPT_DIR/../src/KubeTunnel/KubeTunnel.csproj" \
+    -c Release \
+    -r linux-x64 \
+    --self-contained true \
+    -p:PublishSingleFile=true \
+    -p:IncludeNativeLibrariesForSelfExtract=true
 
 # Install binary
 echo "Installing to $INSTALL_DIR (requires sudo)..."
